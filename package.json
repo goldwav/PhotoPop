@@ -1,0 +1,90 @@
+{
+  "name": "photopop",
+  "version": "0.1.0-alpha.1",
+  "description": "A local-first, open-source desktop image editor for design professionals.",
+  "author": "PhotoPop Contributors",
+  "license": "MPL-2.0",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.mjs",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "dev:desktop": "concurrently -k \"vite --host 0.0.0.0\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron electron/main.mjs\"",
+    "desktop": "electron electron/main.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/prepare-sites-build.mjs",
+    "build:desktop": "pnpm build && electron-builder --win nsis portable zip",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:sites": "node --test tests/sites-worker.test.mjs",
+    "verify": "pnpm test && pnpm build && pnpm test:sites"
+  },
+  "dependencies": {
+    "@fontsource/inter": "5.3.0",
+    "@tabler/icons-react": "3.46.0",
+    "ag-psd": "31.0.2",
+    "canvaskit-wasm": "0.41.1",
+    "jszip": "3.10.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "sharp": "0.35.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.0",
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@vitejs/plugin-react": "5.0.4",
+    "concurrently": "9.2.1",
+    "cross-env": "10.1.0",
+    "electron": "43.2.0",
+    "electron-builder": "26.15.3",
+    "typescript": "7.0.2",
+    "vite": "6.4.2",
+    "vitest": "4.1.10",
+    "wait-on": "9.0.3"
+  },
+  "build": {
+    "appId": "org.photopop.editor",
+    "productName": "PhotoPop",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "electronDist": "node_modules/electron/dist",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/sharp/**/*",
+      "node_modules/@img/**/*"
+    ],
+    "files": [
+      "dist/client/**/*",
+      "electron/**/*",
+      "package.json",
+      "LICENSE",
+      "README.md"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "nsis",
+        "portable",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
+    }
+  }
+}
