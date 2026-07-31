@@ -1,0 +1,52 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: Workflow proposal
+description: Propose a focused editing workflow or usability improvement
+title: '[Workflow]: '
+body:
+  - type: textarea
+    id: job
+    attributes:
+      label: User job
+      description: What real editing outcome is difficult or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current workflow
+      description: Describe the steps, interruption, and workaround in the current alpha.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed behavior
+      description: Focus on the interaction and outcome rather than a copied competitor surface.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: File-safety and compatibility impact
+      description: Explain effects on save/reopen, undo, export, performance, accessibility, and old .photopop projects.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Smallest complete slice
+      description: What is the narrowest honest implementation with no placeholder controls?
+    validations:
+      required: true
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Product principles
+      options:
+        - label: This proposal keeps the editor local-first and does not require an account, cloud service, telemetry, or generative AI.
+          required: true
+        - label: This proposal does not copy proprietary branding, icons, assets, or trade dress.
+          required: true

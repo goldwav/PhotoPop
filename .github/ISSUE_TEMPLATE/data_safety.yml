@@ -1,0 +1,69 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: Data safety incident
+description: Report save, reopen, backup, autosave, or recovery failure
+title: '[Data safety]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Preserve the affected .photopop, .bak, and Recovery files before retrying. Do not upload confidential artwork. Suspected security vulnerabilities must use the private process in SECURITY.md.
+  - type: input
+    id: build
+    attributes:
+      label: PhotoPop build and artifact
+      placeholder: 0.1.0-alpha.1, installed x64 build
+    validations:
+      required: true
+  - type: dropdown
+    id: incident
+    attributes:
+      label: Incident type
+      options:
+        - Save failed
+        - Saved project would not reopen
+        - Reopened project lost or changed content
+        - Recovery snapshot was missing
+        - Recovery snapshot would not open
+        - Previous-save backup was missing or invalid
+        - Export overwrote or corrupted an unexpected file
+        - Other data-safety failure
+    validations:
+      required: true
+  - type: textarea
+    id: timeline
+    attributes:
+      label: Exact timeline
+      description: Include the last successful save, edits made, close/crash/force-quit action, next launch, and recovery choice.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Lost or changed data
+      description: Estimate how much work was affected and whether a normal save, .bak, or recovery copy remains.
+    validations:
+      required: true
+  - type: input
+    id: storage
+    attributes:
+      label: Storage state
+      description: Free disk space, local/removable/network destination, and any sync or antivirus involvement.
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Preserved evidence
+      description: List the files you preserved and their sizes. Share only reduced, license-safe samples.
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I preserved the affected files before retrying or overwriting them.
+          required: true
+        - label: I removed private or client content from anything attached publicly.
+          required: true

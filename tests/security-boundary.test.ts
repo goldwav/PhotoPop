@@ -19,6 +19,13 @@ describe("Electron security boundary", () => {
     const source = await readFile(new URL("../electron/preload.cjs", import.meta.url), "utf8");
     expect(source).toContain("contextBridge.exposeInMainWorld");
     expect(source).not.toContain("ipcRenderer.send(");
-    expect(source).not.toContain("ipcRenderer.on(");
+    const listenerChannels = [...source.matchAll(/ipcRenderer\.on\("([^"]+)"/g)]
+      .map((match) => match[1]);
+    expect(listenerChannels).toEqual([
+      "photopop:launch-file-requested",
+      "photopop:window-close-requested",
+    ]);
+    expect(source).toContain("onLaunchFileRequested: (callback)");
+    expect(source).toContain('removeListener("photopop:window-close-requested"');
   });
 });

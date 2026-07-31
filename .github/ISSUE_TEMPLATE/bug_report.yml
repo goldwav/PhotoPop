@@ -1,0 +1,77 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: Bug report
+description: Report a reproducible editor, desktop, or packaging defect
+title: '[Bug]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping make PhotoPop dependable. Do not attach private artwork, credentials, or suspected security vulnerabilities. Security reports belong in the private process described by SECURITY.md.
+  - type: input
+    id: build
+    attributes:
+      label: PhotoPop build
+      description: Version plus installer, portable executable, portable ZIP, or development build.
+      placeholder: 0.1.0-alpha.1, portable ZIP
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Windows edition/build, memory, and GPU when relevant.
+      placeholder: Windows 11 24H2, 16 GB, Intel integrated graphics
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Start from launch or a named sample and list the smallest repeatable sequence.
+      placeholder: |
+        1. Launch PhotoPop
+        2. Open ...
+        3. Select ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Include visible error text and whether the app remained responsive.
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Frequency
+      options:
+        - Every time
+        - Intermittent
+        - Happened once
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Privacy-safe evidence
+      description: Add screenshots, local diagnostics, or a minimal redistributable file. Remove client and personal data first.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I reproduced this on the build named above.
+          required: true
+        - label: This report does not contain private artwork or a suspected security vulnerability.
+          required: true

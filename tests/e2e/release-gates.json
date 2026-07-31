@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "automatedInWindowsCi": [
+    "launch",
+    "open",
+    "edit",
+    "save",
+    "reopen",
+    "export-png-jpeg-webp-tiff",
+    "shortcuts",
+    "clipboard",
+    "drag-and-drop",
+    "missing-font-fallback",
+    "forced-quit-recovery",
+    "atomic-write-io-failure"
+  ],
+  "environmentSpecificRequiredGates": [
+    {
+      "id": "installed-nsis-upgrade-uninstall",
+      "mode": "release-candidate-windows-vm",
+      "reason": "Source-mode Electron automation does not exercise Windows Installer state or reputation prompts.",
+      "requiredEvidence": [
+        "installer log",
+        "launch screenshot",
+        "upgrade result",
+        "uninstall result"
+      ]
+    },
+    {
+      "id": "true-low-disk",
+      "mode": "disposable-small-volume-windows-vm",
+      "reason": "The automated suite injects a deterministic filesystem failure; an actually full volume must be tested without risking the CI host.",
+      "requiredEvidence": [
+        "free bytes before save",
+        "user-visible error",
+        "original project checksum",
+        "temporary-file cleanup"
+      ]
+    },
+    {
+      "id": "reference-device-interaction-performance",
+      "mode": "windows-11-16gb-integrated-gpu",
+      "reason": "The CPU reference benchmark cannot prove viewport FPS or input latency.",
+      "requiredEvidence": [
+        "4096x4096 30-layer pan and zoom FPS",
+        "brush input p95 latency",
+        "save responsiveness",
+        "export responsiveness",
+        "peak process memory"
+      ]
+    },
+    {
+      "id": "native-dialog-accessibility",
+      "mode": "interactive-windows-vm",
+      "reason": "CI replaces OS dialogs deterministically so keyboard and screen-reader behavior of native dialogs needs an interactive pass.",
+      "requiredEvidence": [
+        "keyboard-only open",
+        "keyboard-only save",
+        "keyboard-only export",
+        "screen-reader labels"
+      ]
+    }
+  ]
+}

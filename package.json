@@ -21,28 +21,33 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:sites": "node --test tests/sites-worker.test.mjs",
-    "verify": "pnpm test && pnpm build && pnpm test:sites"
+    "test:e2e:windows": "playwright test --config playwright.electron.config.mts",
+    "benchmark:reference": "node scripts/performance-reference.mjs --assert --output artifacts/performance-reference.json",
+    "generate:assets": "node scripts/generate-brand-assets.mjs",
+    "generate:samples": "node scripts/create-sample-project.mjs",
+    "verify": "pnpm test && pnpm build && pnpm test:sites",
+    "verify:release": "pnpm verify && pnpm benchmark:reference && pnpm test:e2e:windows"
   },
   "dependencies": {
-    "@fontsource/inter": "5.3.0",
-    "@tabler/icons-react": "3.46.0",
-    "ag-psd": "31.0.2",
-    "canvaskit-wasm": "0.41.1",
     "jszip": "3.10.1",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
     "sharp": "0.35.3"
   },
   "devDependencies": {
+    "@fontsource/inter": "5.3.0",
     "@playwright/test": "1.62.0",
+    "@tabler/icons-react": "3.46.0",
     "@types/node": "26.1.2",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "@vitejs/plugin-react": "5.0.4",
+    "ag-psd": "31.0.2",
+    "canvaskit-wasm": "0.41.1",
     "concurrently": "9.2.1",
     "cross-env": "10.1.0",
     "electron": "43.2.0",
     "electron-builder": "26.15.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "typescript": "7.0.2",
     "vite": "6.4.2",
     "vitest": "4.1.10",
@@ -58,12 +63,22 @@
       "node_modules/sharp/**/*",
       "node_modules/@img/**/*"
     ],
+    "fileAssociations": [
+      {
+        "ext": "photopop",
+        "name": "PhotoPop Project",
+        "description": "PhotoPop layered image project",
+        "mimeType": "application/x-photopop",
+        "role": "Editor"
+      }
+    ],
     "files": [
       "dist/client/**/*",
       "electron/**/*",
       "package.json",
       "LICENSE",
-      "README.md"
+      "README.md",
+      "ASSETS.md"
     ],
     "directories": {
       "output": "release"

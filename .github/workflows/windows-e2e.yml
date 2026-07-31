@@ -1,0 +1,48 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: windows-e2e
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  electron-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Record 4096x4096 30-layer CPU reference evidence
+        run: node scripts/performance-reference.mjs --assert --output artifacts/performance-reference.json
+      - name: Run Electron workflow smoke gates
+        run: pnpm exec playwright test --config playwright.electron.config.mts
+        env:
+          ELECTRON_ENABLE_LOGGING: "1"
+      - name: Upload release-gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoPop-Windows-E2E-${{ github.run_id }}
+          path: |
+            artifacts/performance-reference.json
+            artifacts/playwright-report
+            artifacts/playwright-results
+            tests/e2e/release-gates.json
+          if-no-files-found: warn
+          retention-days: 14

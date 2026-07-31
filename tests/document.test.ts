@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  createBlankDocument,
   createHistory,
   createId,
   createInitialDocument,
@@ -36,8 +37,15 @@ describe("document commands", () => {
     const moved = reduceDocument(added, { type: "layer/reorder", layerId: shape.id, direction: "down" });
     expect(moved.layers.at(-2)?.id).toBe(shape.id);
 
+    const movedToCanvas = reduceDocument(moved, {
+      type: "layer/reorder-to",
+      layerId: shape.id,
+      targetLayerId: moved.layers[0].id,
+    });
+    expect(movedToCanvas.layers[0].id).toBe(shape.id);
+
     const duplicateId = createId("layer");
-    const duplicated = reduceDocument(moved, { type: "layer/duplicate", layerId: shape.id, newId: duplicateId });
+    const duplicated = reduceDocument(movedToCanvas, { type: "layer/duplicate", layerId: shape.id, newId: duplicateId });
     expect(duplicated.layers.some((layer) => layer.id === duplicateId)).toBe(true);
 
     const removed = reduceDocument(duplicated, { type: "layer/remove", layerId: duplicateId });
@@ -79,6 +87,42 @@ describe("document commands", () => {
     expect(() => JSON.stringify(painted)).not.toThrow();
   });
 
+  it("sizes a new document and its background from the same pixel geometry", () => {
+    const document = createBlankDocument(1600, 900);
+    const background = document.layers[0];
+    expect(document.width).toBe(1600);
+    expect(document.height).toBe(900);
+    expect(background.type).toBe("shape");
+    if (background.type === "shape") {
+      expect(background.bounds).toEqual({ x: 0, y: 0, width: 1600, height: 900 });
+    }
+  });
+
+  it("enforces a locked layer for properties and masks while still allowing unlock", () => {
+    const initial = createInitialDocument();
+    const locked = initial.layers.find((layer) => layer.locked)!;
+    const moved = reduceDocument(initial, {
+      type: "layer/update",
+      layerId: locked.id,
+      changes: { transform: { ...locked.transform, x: 120 } },
+    });
+    const masked = reduceDocument(initial, { type: "mask/ensure", layerId: locked.id });
+    expect(moved).toBe(initial);
+    expect(masked).toBe(initial);
+
+    const unlocked = reduceDocument(initial, {
+      type: "layer/update",
+      layerId: locked.id,
+      changes: { locked: false },
+    });
+    expect(unlocked.layers.find((layer) => layer.id === locked.id)?.locked).toBe(false);
+  });
+
+  it("keeps a no-op undo clean", () => {
+    const initial = createHistory();
+    expect(dispatchHistory(initial, { type: "history/undo" })).toBe(initial);
+  });
+
   it("keeps undo and redo deterministic", () => {
     const initial = createHistory();
     const renamed = dispatchHistory(initial, { type: "document/rename", name: "Campaign" });
@@ -90,14 +134,30 @@ describe("document commands", () => {
     expect(redone.present.foreground).toBe("#ff0000");
   });
 
+  it("treats layer selection as workspace state instead of an undoable edit", () => {
+    const initial = createHistory();
+    const nextLayer = initial.present.layers.find((layer) => layer.id !== initial.present.selectedLayerId);
+    expect(nextLayer).toBeDefined();
+
+    const selected = dispatchHistory(initial, {
+      type: "layer/select",
+      layerId: nextLayer!.id,
+    });
+
+    expect(selected.present.selectedLayerId).toBe(nextLayer!.id);
+    expect(selected.revision).toBe(initial.revision);
+    expect(selected.past).toEqual(initial.past);
+    expect(selected.future).toEqual(initial.future);
+  });
+
   it("crops without producing invalid dimensions", () => {
     const initial = createInitialDocument();
     const cropped = reduceDocument(initial, {
       type: "document/crop",
       bounds: { x: 100, y: 200, width: 500, height: 400 },
     });
-    expect(cropped.width).toBe(1500);
-    expect(cropped.height).toBe(1200);
+    expect(cropped.width).toBe(500);
+    expect(cropped.height).toBe(400);
     expect(cropped.selection.kind).toBe("none");
     expect(validateDocument(cropped)).toBe(true);
   });

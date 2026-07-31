@@ -1,0 +1,66 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: Format compatibility
+description: Report an import, export, PSD conversion, color, or metadata problem
+title: '[Format]: '
+body:
+  - type: input
+    id: build
+    attributes:
+      label: PhotoPop build and artifact
+    validations:
+      required: true
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Operation
+      options:
+        - Import/open
+        - Native .photopop reopen
+        - Flattened export
+        - PSD compatibility report
+    validations:
+      required: true
+  - type: input
+    id: format
+    attributes:
+      label: File format and characteristics
+      description: Include dimensions, color mode, bit depth, alpha, and profile when known.
+      placeholder: PSD, 3000x2000, RGB, 8-bit, sRGB
+    validations:
+      required: true
+  - type: textarea
+    id: features
+    attributes:
+      label: Relevant source features
+      description: Layers, groups, masks, blend modes, text, effects, smart objects, transparency, or metadata.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Compatibility report
+      description: For PSD, paste the imported, rasterized, substituted, flattened, and unsupported entries.
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Expected versus actual rendering
+      description: State the independent viewer used for comparison and where the first visible difference appears.
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: License-safe reduced sample
+      description: Attach or link a minimal file only when you have permission to redistribute it.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy and licensing
+      options:
+        - label: Any public sample is minimal and licensed for redistribution.
+          required: true
+        - label: This is not a private security report.
+          required: true

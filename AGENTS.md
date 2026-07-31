@@ -17,3 +17,5 @@ The selected design is ideation option 2, preserved at `design-reference.png`.
 - Use Inter for the application UI and a high-contrast serif only inside editable artwork.
 - The default sample document demonstrates portrait mask editing in an editorial paper collage.
 - Do not add account, cloud, AI, telemetry, or decorative dashboard surfaces.
+- Prefer a "Calm Canvas" interaction model: the artwork stays dominant, controls appear contextually, and workspace chrome can recede without hiding essential state.
+- Motion must be short and purposeful, preserve spatial continuity, avoid easing active brush or pan input, and honor reduced-motion preferences.

@@ -145,6 +145,7 @@ export type EditorCommand =
   | { type: "layer/remove"; layerId: string }
   | { type: "layer/duplicate"; layerId: string; newId: string }
   | { type: "layer/reorder"; layerId: string; direction: "up" | "down" }
+  | { type: "layer/reorder-to"; layerId: string; targetLayerId: string }
   | { type: "layer/toggle-visibility"; layerId: string }
   | { type: "layer/update"; layerId: string; changes: Partial<Layer> }
   | { type: "mask/ensure"; layerId: string }
@@ -195,18 +196,30 @@ export interface DesktopOpenResult {
   mimeType?: string;
 }
 
+export interface DesktopLaunchFile {
+  name: string;
+  path: string;
+  data: Uint8Array;
+  mimeType: "application/x-photopop";
+}
+
 export interface PhotoPopDesktopApi {
   isDesktop: true;
   openProject: () => Promise<DesktopOpenResult>;
   openImage: () => Promise<DesktopOpenResult>;
   saveProject: (request: { bytes: Uint8Array; suggestedName: string; path?: string }) => Promise<{ canceled: boolean; path?: string }>;
-  exportImage: (request: { dataUrl: string; format: ExportOptions["format"]; suggestedName: string }) => Promise<{ canceled: boolean; path?: string }>;
+  exportImage: (request: { dataUrl: string; suggestedName: string; quality: number } & Omit<ExportOptions, "quality">) => Promise<{ canceled: boolean; path?: string }>;
   writeAutosave: (request: { bytes: Uint8Array; documentId: string }) => Promise<{ path: string }>;
   readAutosave: () => Promise<DesktopOpenResult>;
+  clearAutosave: (documentId?: string) => Promise<void>;
   recentFiles: () => Promise<string[]>;
   listFonts: () => Promise<string[]>;
   readClipboardImage: () => Promise<string | undefined>;
   writeClipboardImage: (dataUrl: string) => Promise<void>;
   readPreferences: () => Promise<Record<string, unknown>>;
   writePreferences: (preferences: Record<string, unknown>) => Promise<void>;
+  setDocumentDirty: (dirty: boolean) => Promise<void>;
+  onLaunchFileRequested: (callback: (file: DesktopLaunchFile) => void) => () => void;
+  onWindowCloseRequested: (callback: () => void) => () => void;
+  confirmWindowClose: () => Promise<void>;
 }

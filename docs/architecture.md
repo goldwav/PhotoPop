@@ -14,4 +14,13 @@ Electron runs with `sandbox: true`, `contextIsolation: true`, and `nodeIntegrati
 
 ## Data safety
 
-Native saves are ZIP64-compatible `.photopop` packages. Desktop writes go to a sibling temporary file, are read back for validation, and then replace the destination atomically. The previous file is retained as `.bak`. Autosave stores the latest recoverable package every 30 seconds after a mutation.
+Native saves are versioned ZIP `.photopop` packages. Desktop writes go to a
+sibling temporary file, are read back for manifest and document-graph validation,
+and then replace the destination atomically. The previous file is retained as
+`.bak`. Autosave stores the latest recoverable package every 30 seconds after a
+mutation. The alpha’s 512 MiB payload limit means ZIP64-scale projects are not yet
+an advertised capability.
+
+Recovery candidates are cleared after a successful matching save or an explicit
+dismissal. See [Recovery and Backups](recovery.md) for user-facing behavior and
+manual recovery steps.

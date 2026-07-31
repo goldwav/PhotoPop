@@ -49,6 +49,38 @@ export function createDefaultMask(): LayerMask {
   };
 }
 
+export function createBlankDocument(
+  width = 1600,
+  height = 1200,
+  name = "Untitled",
+): DocumentSnapshot {
+  const safeWidth = Math.max(1, Math.round(width));
+  const safeHeight = Math.max(1, Math.round(height));
+  const now = new Date().toISOString();
+  const background: ShapeLayer = {
+    ...baseLayer("Background"),
+    type: "shape",
+    shape: "rectangle",
+    bounds: { x: 0, y: 0, width: safeWidth, height: safeHeight },
+    fill: "#ffffff",
+  };
+  return {
+    schemaVersion: 1,
+    id: createId("document"),
+    name,
+    width: safeWidth,
+    height: safeHeight,
+    colorSpace: "srgb",
+    bitDepth: 8,
+    layers: [background],
+    selectedLayerId: background.id,
+    selection: { kind: "none", feather: 0 },
+    foreground: "#111111",
+    background: "#ffffff",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 export function createInitialDocument(): DocumentSnapshot {
   const now = new Date().toISOString();
 
@@ -123,8 +155,8 @@ export function createInitialDocument(): DocumentSnapshot {
     schemaVersion: 1,
     id: createId("document"),
     name: "Editorial-Cover",
-    width: 3000,
-    height: 3000,
+    width: 1000,
+    height: 1000,
     colorSpace: "srgb",
     bitDepth: 8,
     layers: [canvas, portrait, paperShapes, coral, masthead],
@@ -149,13 +181,14 @@ function updateLayer(
   layerId: string,
   updater: (layer: Layer) => Layer,
 ): DocumentSnapshot {
-  let found = false;
+  let changed = false;
   const layers = document.layers.map((layer) => {
     if (layer.id !== layerId) return layer;
-    found = true;
-    return updater(layer);
+    const next = updater(layer);
+    if (next !== layer) changed = true;
+    return next;
   });
-  return found ? touch({ ...document, layers }) : document;
+  return changed ? touch({ ...document, layers }) : document;
 }
 
 export function reduceDocument(
@@ -164,7 +197,8 @@ export function reduceDocument(
 ): DocumentSnapshot {
   switch (command.type) {
     case "layer/select":
-      return document.layers.some((layer) => layer.id === command.layerId)
+      return command.layerId !== document.selectedLayerId
+        && document.layers.some((layer) => layer.id === command.layerId)
         ? { ...document, selectedLayerId: command.layerId }
         : document;
     case "layer/add": {
@@ -210,74 +244,90 @@ export function reduceDocument(
       [layers[index], layers[target]] = [layers[target], layers[index]];
       return touch({ ...document, layers });
     }
+    case "layer/reorder-to": {
+      const sourceIndex = document.layers.findIndex((layer) => layer.id === command.layerId);
+      const targetIndex = document.layers.findIndex((layer) => layer.id === command.targetLayerId);
+      if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return document;
+      const layers = [...document.layers];
+      const [moved] = layers.splice(sourceIndex, 1);
+      layers.splice(targetIndex, 0, moved);
+      return touch({ ...document, layers });
+    }
     case "layer/toggle-visibility":
       return updateLayer(document, command.layerId, (layer) => ({
         ...layer,
         visible: !layer.visible,
       }));
     case "layer/update":
-      return updateLayer(document, command.layerId, (layer) => ({
-        ...layer,
-        ...command.changes,
-        transform: command.changes.transform
-          ? { ...layer.transform, ...command.changes.transform }
-          : layer.transform,
-      }) as Layer);
+      return updateLayer(document, command.layerId, (layer) => {
+        const changeKeys = Object.keys(command.changes);
+        const unlockOnly = changeKeys.length === 1 && changeKeys[0] === "locked" && command.changes.locked === false;
+        if (layer.locked && !unlockOnly) return layer;
+        return {
+          ...layer,
+          ...command.changes,
+          transform: command.changes.transform
+            ? { ...layer.transform, ...command.changes.transform }
+            : layer.transform,
+        } as Layer;
+      });
     case "mask/ensure":
-      return updateLayer(document, command.layerId, (layer) => ({
-        ...layer,
-        mask: layer.mask ?? createDefaultMask(),
-      }));
+      return updateLayer(document, command.layerId, (layer) => layer.locked || layer.mask
+        ? layer
+        : { ...layer, mask: createDefaultMask() });
     case "mask/settings":
-      return updateLayer(document, command.layerId, (layer) => ({
-        ...layer,
-        mask: {
-          ...(layer.mask ?? createDefaultMask()),
-          density: command.density ?? layer.mask?.density ?? 1,
-          feather: command.feather ?? layer.mask?.feather ?? 0,
-        },
-      }));
+      return updateLayer(document, command.layerId, (layer) => layer.locked
+        ? layer
+        : {
+            ...layer,
+            mask: {
+              ...(layer.mask ?? createDefaultMask()),
+              density: command.density ?? layer.mask?.density ?? 1,
+              feather: command.feather ?? layer.mask?.feather ?? 0,
+            },
+          });
     case "mask/stroke":
-      return updateLayer(document, command.layerId, (layer) => ({
-        ...layer,
-        mask: {
-          ...(layer.mask ?? createDefaultMask()),
-          strokes: [...(layer.mask?.strokes ?? []), command.stroke],
-        },
-      }));
+      return updateLayer(document, command.layerId, (layer) => layer.locked
+        ? layer
+        : {
+            ...layer,
+            mask: {
+              ...(layer.mask ?? createDefaultMask()),
+              strokes: [...(layer.mask?.strokes ?? []), command.stroke],
+            },
+          });
     case "selection/set":
       return { ...document, selection: command.selection };
     case "selection/clear":
-      return { ...document, selection: { kind: "none", feather: 0 } };
+      return document.selection.kind === "none" && document.selection.feather === 0
+        ? document
+        : { ...document, selection: { kind: "none", feather: 0 } };
     case "document/rename":
       return touch({ ...document, name: command.name.trim() || document.name });
     case "document/crop": {
-      const widthRatio = 1000 / Math.max(1, command.bounds.width);
-      const heightRatio = 1000 / Math.max(1, command.bounds.height);
       const layers = document.layers.map((layer) => ({
         ...layer,
         transform: {
           ...layer.transform,
-          x: (layer.transform.x - command.bounds.x) * widthRatio,
-          y: (layer.transform.y - command.bounds.y) * heightRatio,
-          scaleX: layer.transform.scaleX * widthRatio,
-          scaleY: layer.transform.scaleY * heightRatio,
+          x: layer.transform.x - command.bounds.x,
+          y: layer.transform.y - command.bounds.y,
         },
       }));
       return touch({
         ...document,
-        width: Math.max(1, Math.round(document.width * command.bounds.width / 1000)),
-        height: Math.max(1, Math.round(document.height * command.bounds.height / 1000)),
+        width: Math.max(1, Math.round(command.bounds.width)),
+        height: Math.max(1, Math.round(command.bounds.height)),
         layers,
         selection: { kind: "none", feather: 0 },
       });
     }
-    case "colors/set":
-      return {
-        ...document,
-        foreground: command.foreground ?? document.foreground,
-        background: command.background ?? document.background,
-      };
+    case "colors/set": {
+      const foreground = command.foreground ?? document.foreground;
+      const background = command.background ?? document.background;
+      return foreground === document.foreground && background === document.background
+        ? document
+        : { ...document, foreground, background };
+    }
   }
 }
 
@@ -318,6 +368,12 @@ export function dispatchHistory(
 
   const next = reduceDocument(state.present, command);
   if (next === state.present) return state;
+  if (command.type === "layer/select") {
+    return {
+      ...state,
+      present: next,
+    };
+  }
   return {
     past: [...state.past, state.present].slice(-limit),
     present: next,
@@ -361,17 +417,126 @@ export function createShapeLayer(
   };
 }
 
+function finiteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function validTransform(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const transform = value as Partial<BaseLayer["transform"]>;
+  return finiteNumber(transform.x)
+    && finiteNumber(transform.y)
+    && finiteNumber(transform.scaleX)
+    && finiteNumber(transform.scaleY)
+    && finiteNumber(transform.rotation)
+    && Math.abs(transform.scaleX) <= 1_000
+    && Math.abs(transform.scaleY) <= 1_000;
+}
+
+function validMask(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object") return false;
+  const mask = value as Partial<LayerMask>;
+  return finiteNumber(mask.density)
+    && mask.density >= 0
+    && mask.density <= 1
+    && finiteNumber(mask.feather)
+    && mask.feather >= 0
+    && mask.feather <= 10_000
+    && Array.isArray(mask.strokes)
+    && mask.strokes.length <= 100_000
+    && mask.strokes.every((stroke) => Boolean(stroke)
+      && typeof stroke.id === "string"
+      && stroke.id.length > 0
+      && Array.isArray(stroke.points)
+      && stroke.points.length <= 1_000_000
+      && stroke.points.every((point) => finiteNumber(point?.x) && finiteNumber(point?.y))
+      && finiteNumber(stroke.size)
+      && stroke.size > 0
+      && stroke.size <= 100_000
+      && finiteNumber(stroke.hardness)
+      && stroke.hardness >= 0
+      && stroke.hardness <= 1
+      && finiteNumber(stroke.opacity)
+      && stroke.opacity >= 0
+      && stroke.opacity <= 1
+      && (stroke.mode === "hide" || stroke.mode === "reveal"));
+}
+
+function validLayer(value: unknown): value is Layer {
+  if (!value || typeof value !== "object") return false;
+  const layer = value as Partial<Layer>;
+  if (typeof layer.id !== "string" || !layer.id || layer.id.length > 200
+    || typeof layer.name !== "string" || layer.name.length > 10_000
+    || typeof layer.visible !== "boolean"
+    || typeof layer.locked !== "boolean"
+    || !finiteNumber(layer.opacity) || layer.opacity < 0 || layer.opacity > 1
+    || !validTransform(layer.transform)
+    || !validMask(layer.mask)) return false;
+  if (layer.parentId !== undefined && typeof layer.parentId !== "string") return false;
+  if (![
+    "normal", "multiply", "screen", "overlay", "darken", "lighten",
+    "color-dodge", "color-burn", "hard-light", "soft-light",
+  ].includes(String(layer.blendMode))) return false;
+
+  if (layer.type === "raster") return typeof layer.source === "string" && layer.source.length <= 512 * 1024 * 1024;
+  if (layer.type === "group") return true;
+  if (layer.type === "text") {
+    return typeof layer.text === "string"
+      && layer.text.length <= 1_000_000
+      && typeof layer.fontFamily === "string"
+      && finiteNumber(layer.fontSize) && layer.fontSize > 0 && layer.fontSize <= 100_000
+      && finiteNumber(layer.fontWeight)
+      && typeof layer.color === "string"
+      && finiteNumber(layer.letterSpacing)
+      && ["left", "right", "center", "start", "end"].includes(String(layer.align));
+  }
+  if (layer.type === "shape") {
+    return Boolean(layer.bounds)
+      && finiteNumber(layer.bounds?.x)
+      && finiteNumber(layer.bounds?.y)
+      && finiteNumber(layer.bounds?.width)
+      && finiteNumber(layer.bounds?.height)
+      && typeof layer.fill === "string"
+      && ["rectangle", "ellipse", "polygon", "gradient"].includes(String(layer.shape));
+  }
+  if (layer.type === "adjustment") {
+    return ["brightness-contrast", "hue-saturation", "levels", "curves", "blur", "sharpen"].includes(String(layer.adjustment))
+      && Boolean(layer.values)
+      && Object.keys(layer.values ?? {}).length <= 100
+      && Object.values(layer.values ?? {}).every(finiteNumber);
+  }
+  return false;
+}
+
 export function validateDocument(value: unknown): value is DocumentSnapshot {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<DocumentSnapshot>;
-  return candidate.schemaVersion === 1
-    && typeof candidate.id === "string"
-    && typeof candidate.name === "string"
-    && typeof candidate.width === "number"
-    && typeof candidate.height === "number"
-    && candidate.colorSpace === "srgb"
-    && candidate.bitDepth === 8
-    && Array.isArray(candidate.layers)
-    && candidate.layers.length > 0
-    && typeof candidate.selectedLayerId === "string";
+  if (candidate.schemaVersion !== 1
+    || typeof candidate.id !== "string" || !candidate.id
+    || typeof candidate.name !== "string" || candidate.name.length > 10_000
+    || !finiteNumber(candidate.width) || candidate.width < 1 || candidate.width > 100_000
+    || !finiteNumber(candidate.height) || candidate.height < 1 || candidate.height > 100_000
+    || candidate.colorSpace !== "srgb"
+    || candidate.bitDepth !== 8
+    || !Array.isArray(candidate.layers)
+    || candidate.layers.length < 1
+    || candidate.layers.length > 100_000
+    || !candidate.layers.every(validLayer)
+    || typeof candidate.selectedLayerId !== "string") return false;
+
+  const ids = new Set(candidate.layers.map((layer) => layer.id));
+  if (ids.size !== candidate.layers.length || !ids.has(candidate.selectedLayerId)) return false;
+  const groups = new Set(candidate.layers.filter((layer) => layer.type === "group").map((layer) => layer.id));
+  if (candidate.layers.some((layer) => layer.parentId && (!groups.has(layer.parentId) || layer.parentId === layer.id))) return false;
+
+  const selection = candidate.selection;
+  return Boolean(selection)
+    && ["none", "rect", "lasso"].includes(String(selection?.kind))
+    && finiteNumber(selection?.feather)
+    && selection!.feather >= 0
+    && typeof candidate.foreground === "string"
+    && typeof candidate.background === "string"
+    && typeof candidate.createdAt === "string"
+    && typeof candidate.updatedAt === "string";
 }
