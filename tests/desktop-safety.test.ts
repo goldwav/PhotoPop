@@ -23,6 +23,7 @@ vi.mock("electron", () => ({
     on: vi.fn((event: string, handler: EventHandler) => electronHarness.appListeners.set(event, handler)),
     quit: vi.fn(),
     requestSingleInstanceLock: vi.fn(() => true),
+    setAppUserModelId: vi.fn(),
     whenReady: vi.fn(() => new Promise<void>(() => undefined)),
   },
   BrowserWindow: class BrowserWindow {

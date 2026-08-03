@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { describe, expect, it } from "vitest";
+import type { AdjustmentLayer } from "../src/types";
 import {
   createBlankDocument,
   createHistory,
@@ -85,6 +86,47 @@ describe("document commands", () => {
     expect(mask?.feather).toBe(8);
     expect(mask?.strokes).toHaveLength(1);
     expect(() => JSON.stringify(painted)).not.toThrow();
+  });
+
+  it("creates, configures, and paints a valid adjustment-layer mask", () => {
+    const initial = createInitialDocument();
+    const adjustment: AdjustmentLayer = {
+      id: "adjustment-mask-command",
+      type: "adjustment",
+      name: "Masked levels",
+      adjustment: "levels",
+      values: { black: 0, gamma: 1, white: 220 },
+      visible: true,
+      locked: false,
+      opacity: 0.8,
+      blendMode: "normal",
+      transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 },
+    };
+    const added = reduceDocument(initial, { type: "layer/add", layer: adjustment });
+    const ensured = reduceDocument(added, { type: "mask/ensure", layerId: adjustment.id });
+    const configured = reduceDocument(ensured, {
+      type: "mask/settings",
+      layerId: adjustment.id,
+      density: 0.55,
+      feather: 6,
+    });
+    const painted = reduceDocument(configured, {
+      type: "mask/stroke",
+      layerId: adjustment.id,
+      stroke: {
+        id: "adjustment-stroke",
+        points: [{ x: 12, y: 16 }, { x: 48, y: 52 }],
+        size: 24,
+        hardness: 0.75,
+        opacity: 0.6,
+        mode: "hide",
+      },
+    });
+    const mask = painted.layers.find((layer) => layer.id === adjustment.id)?.mask;
+
+    expect(mask).toMatchObject({ density: 0.55, feather: 6 });
+    expect(mask?.strokes).toHaveLength(1);
+    expect(validateDocument(painted)).toBe(true);
   });
 
   it("sizes a new document and its background from the same pixel geometry", () => {

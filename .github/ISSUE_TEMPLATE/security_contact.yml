@@ -1,0 +1,25 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: Security contact request
+description: Request a private reporting channel without disclosing vulnerability details
+title: '[Security contact request]: Private channel needed'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not describe the suspected vulnerability in this public issue.**
+
+        This form is only a fail-safe for when the repository's Security page does not show **Report a vulnerability**. After a private channel is available, submit the complete report there.
+  - type: checkboxes
+    id: safety_checks
+    attributes:
+      label: Public-report safety checks
+      options:
+        - label: I checked the repository's Security page and the Report a vulnerability button is unavailable.
+          required: true
+        - label: I have not included the affected feature, version, filenames, reproduction steps, logs, screenshots, exploit code, or any other vulnerability detail in this issue.
+          required: true
+        - label: I will share technical details only after the maintainers provide a verified private reporting channel.
+          required: true

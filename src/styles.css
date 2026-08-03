@@ -100,14 +100,15 @@ textarea:focus-visible {
 }
 
 .brand {
-  width: 86px;
-  padding: 0 14px;
+  flex: 0 0 auto;
+  min-width: 100px;
+  padding: 0 16px;
   border: 0;
-  border-right: 1px solid var(--line);
   background: transparent;
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.45px;
+  white-space: nowrap;
   text-align: left;
   cursor: pointer;
 }
@@ -1635,6 +1636,22 @@ input[type="range"] {
 .reset-adjustment {
   width: 100%;
   margin-top: 18px;
+}
+
+.adjustment-mask-controls {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.adjustment-mask-controls h3 {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.adjustment-mask-controls .property-sliders {
+  gap: 16px;
 }
 
 .text-properties textarea {

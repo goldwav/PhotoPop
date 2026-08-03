@@ -3,4 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 blank_issues_enabled: false
+# Security details must never be collected through a public contact link. The
+# dedicated security_contact.yml form only requests that maintainers open a
+# private channel when GitHub private vulnerability reporting is unavailable.
 contact_links: []

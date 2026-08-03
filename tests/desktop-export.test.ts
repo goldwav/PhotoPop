@@ -20,6 +20,7 @@ vi.mock("electron", () => ({
   app: {
     getPath: vi.fn(() => electronHarness.userData),
     requestSingleInstanceLock: vi.fn(() => true),
+    setAppUserModelId: vi.fn(),
     on: vi.fn(),
     quit: vi.fn(),
     whenReady: vi.fn(() => new Promise<void>(() => undefined)),

@@ -35,4 +35,4 @@ node scripts/create-sample-project.mjs
 - Inter is provided through `@fontsource/inter` and remains subject to the SIL Open Font License.
 - Interface icons are rendered from `@tabler/icons-react` and remain subject to the Tabler Icons MIT license.
 
-Dependency license texts should be included in distributed notices when required by their upstream licenses.
+Resolved versions, license identifiers, and attribution notices distributed with PhotoPop are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The desktop build ships a directly readable copy alongside the application resources.

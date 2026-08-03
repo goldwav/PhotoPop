@@ -148,6 +148,30 @@ function renderMask(
   return surface;
 }
 
+function renderMaskWithDensity(
+  mask: NonNullable<Layer["mask"]>,
+  width: number,
+  height: number,
+  scale: number,
+): HTMLCanvasElement {
+  const painted = renderMask(mask, width, height, scale);
+  const density = Math.max(0, Math.min(1, mask.density));
+  if (density === 1) return painted;
+
+  const unmasked = createSurface(width, height);
+  const unmaskedContext = unmasked.getContext("2d");
+  if (!unmaskedContext) return painted;
+  unmaskedContext.fillStyle = "#ffffff";
+  unmaskedContext.fillRect(0, 0, width, height);
+  if (density === 0) return unmasked;
+
+  const mixed = createSurface(width, height);
+  const mixedContext = mixed.getContext("2d");
+  if (!mixedContext) return painted;
+  drawDensityMixedMask(mixedContext, unmasked, painted, density);
+  return mixed;
+}
+
 function drawLayerContent(
   context: CanvasRenderingContext2D,
   layer: Layer,
@@ -316,6 +340,154 @@ export function applyPixelAdjustment(
   return result;
 }
 
+export function blendAdjustmentPixels(
+  backdrop: Uint8ClampedArray,
+  adjusted: Uint8ClampedArray,
+  opacity: number,
+  blendMode: Layer["blendMode"],
+  effectMask?: Uint8ClampedArray,
+): Uint8ClampedArray {
+  if (
+    backdrop.length !== adjusted.length
+    || backdrop.length % 4 !== 0
+    || (effectMask && effectMask.length !== backdrop.length)
+  ) {
+    throw new Error("Adjustment pixel buffers and optional mask must contain matching RGBA data.");
+  }
+  const layerStrength = Math.max(0, Math.min(1, opacity));
+  const result = new Uint8ClampedArray(backdrop.length);
+  for (let index = 0; index < backdrop.length; index += 4) {
+    const maskStrength = effectMask ? effectMask[index + 3] / 255 : 1;
+    const strength = layerStrength * maskStrength;
+    const backdropAlpha = backdrop[index + 3] / 255;
+    const adjustedAlpha = adjusted[index + 3] / 255;
+    const outputAlpha = backdropAlpha + strength * (adjustedAlpha - backdropAlpha);
+    for (let channel = 0; channel < 3; channel += 1) {
+      const backdropChannel = backdrop[index + channel] / 255;
+      const adjustedChannel = adjusted[index + channel] / 255;
+      const blended = blendAdjustmentChannel(backdropChannel, adjustedChannel, blendMode);
+      // Per the compositing model, blend math applies only where backdrop and
+      // adjusted pixels overlap. A blurred source edge over transparency keeps
+      // its own color instead of multiplying against implicit black.
+      const overlapAware = adjustedChannel
+        + backdropAlpha * (blended - adjustedChannel);
+      const premultiplied = (1 - strength) * backdropChannel * backdropAlpha
+        + strength * overlapAware * adjustedAlpha;
+      result[index + channel] = outputAlpha > 0
+        ? Math.round(255 * premultiplied / outputAlpha)
+        : 0;
+    }
+    result[index + 3] = Math.round(255 * outputAlpha);
+  }
+  return result;
+}
+
+function blendAdjustmentChannel(
+  backdrop: number,
+  source: number,
+  mode: Layer["blendMode"],
+): number {
+  switch (mode) {
+    case "normal":
+      return source;
+    case "multiply":
+      return backdrop * source;
+    case "screen":
+      return backdrop + source - backdrop * source;
+    case "overlay":
+      return overlayAdjustmentChannel(backdrop, source);
+    case "darken":
+      return Math.min(backdrop, source);
+    case "lighten":
+      return Math.max(backdrop, source);
+    case "color-dodge":
+      return source >= 1 ? 1 : Math.min(1, backdrop / (1 - source));
+    case "color-burn":
+      return source <= 0 ? 0 : 1 - Math.min(1, (1 - backdrop) / source);
+    case "hard-light":
+      return overlayAdjustmentChannel(source, backdrop);
+    case "soft-light": {
+      if (source <= 0.5) {
+        return backdrop - (1 - 2 * source) * backdrop * (1 - backdrop);
+      }
+      const curve = backdrop <= 0.25
+        ? ((16 * backdrop - 12) * backdrop + 4) * backdrop
+        : Math.sqrt(backdrop);
+      return backdrop + (2 * source - 1) * (curve - backdrop);
+    }
+  }
+}
+
+function overlayAdjustmentChannel(backdrop: number, source: number): number {
+  return backdrop <= 0.5
+    ? 2 * backdrop * source
+    : 1 - 2 * (1 - backdrop) * (1 - source);
+}
+
+export function drawPremultipliedCrossfade(
+  context: Pick<
+    CanvasRenderingContext2D,
+    "drawImage" | "globalAlpha" | "globalCompositeOperation"
+  >,
+  backdrop: CanvasImageSource,
+  adjusted: CanvasImageSource,
+  opacity: number,
+): void {
+  const strength = Math.max(0, Math.min(1, opacity));
+  context.globalCompositeOperation = "source-over";
+  context.globalAlpha = 1 - strength;
+  context.drawImage(backdrop, 0, 0);
+  context.globalCompositeOperation = "lighter";
+  context.globalAlpha = strength;
+  context.drawImage(adjusted, 0, 0);
+}
+
+export function drawDensityMixedMask(
+  context: Pick<
+    CanvasRenderingContext2D,
+    "drawImage" | "globalAlpha" | "globalCompositeOperation"
+  >,
+  unmasked: CanvasImageSource,
+  masked: CanvasImageSource,
+  density: number,
+): void {
+  drawPremultipliedCrossfade(context, unmasked, masked, density);
+}
+
+function drawMaskedPremultipliedCrossfade(
+  context: CanvasRenderingContext2D,
+  backdrop: HTMLCanvasElement,
+  adjusted: HTMLCanvasElement,
+  effectMask: HTMLCanvasElement,
+  opacity: number,
+): void {
+  const strength = Math.max(0, Math.min(1, opacity));
+  const backdropPart = createSurface(backdrop.width, backdrop.height);
+  const backdropPartContext = backdropPart.getContext("2d");
+  const adjustedPart = createSurface(backdrop.width, backdrop.height);
+  const adjustedPartContext = adjustedPart.getContext("2d");
+  if (!backdropPartContext || !adjustedPartContext) return;
+
+  backdropPartContext.drawImage(backdrop, 0, 0);
+  backdropPartContext.globalCompositeOperation = "destination-out";
+  backdropPartContext.globalAlpha = strength;
+  backdropPartContext.drawImage(effectMask, 0, 0);
+
+  adjustedPartContext.drawImage(adjusted, 0, 0);
+  adjustedPartContext.globalCompositeOperation = "destination-in";
+  adjustedPartContext.globalAlpha = strength;
+  adjustedPartContext.drawImage(effectMask, 0, 0);
+
+  context.save();
+  context.clearRect(0, 0, backdrop.width, backdrop.height);
+  context.globalCompositeOperation = "source-over";
+  context.globalAlpha = 1;
+  context.drawImage(backdropPart, 0, 0);
+  context.globalCompositeOperation = "lighter";
+  context.drawImage(adjustedPart, 0, 0);
+  context.restore();
+}
+
 function applyAdjustment(
   target: HTMLCanvasElement,
   layer: Extract<Layer, { type: "adjustment" }>,
@@ -325,18 +497,25 @@ function applyAdjustment(
   if (!context) return;
   const width = target.width;
   const height = target.height;
+  const usesByteAdjustment = ["levels", "curves", "sharpen"].includes(layer.adjustment);
+  const needsSnapshotReadback = usesByteAdjustment || layer.blendMode !== "normal";
   const snapshot = createSurface(width, height);
-  snapshot.getContext("2d")?.drawImage(target, 0, 0);
+  const snapshotContext = snapshot.getContext("2d", { willReadFrequently: needsSnapshotReadback });
+  if (!snapshotContext) return;
+  snapshotContext.drawImage(target, 0, 0);
   const filtered = createSurface(width, height);
-  const filteredContext = filtered.getContext("2d");
+  const filteredContext = filtered.getContext("2d", {
+    willReadFrequently: layer.blendMode !== "normal",
+  });
   if (!filteredContext) return;
 
-  if (["levels", "curves", "sharpen"].includes(layer.adjustment)) {
-    filteredContext.drawImage(snapshot, 0, 0);
-    const imageData = filteredContext.getImageData(0, 0, width, height);
-    const adjusted = applyPixelAdjustment(imageData.data, width, height, layer);
+  let snapshotPixels: Uint8ClampedArray | undefined;
+  let adjustedPixels: Uint8ClampedArray | undefined;
+  if (usesByteAdjustment) {
+    snapshotPixels = snapshotContext.getImageData(0, 0, width, height).data;
+    adjustedPixels = applyPixelAdjustment(snapshotPixels, width, height, layer);
     const adjustedImage = filteredContext.createImageData(width, height);
-    adjustedImage.data.set(adjusted);
+    adjustedImage.data.set(adjustedPixels);
     filteredContext.putImageData(adjustedImage, 0, 0);
   } else {
     const brightness = layer.adjustment === "brightness-contrast" ? layer.values.brightness ?? 0 : 0;
@@ -354,13 +533,47 @@ function applyAdjustment(
     filteredContext.drawImage(snapshot, 0, 0);
   }
 
-  context.save();
+  const effectMask = layer.mask?.strokes.length
+    ? renderMaskWithDensity(layer.mask, width, height, renderScale)
+    : undefined;
+
+  if (layer.blendMode === "normal") {
+    // Weighted additive drawing is a premultiplied RGBA crossfade. It preserves
+    // equal alpha and lets blur interpolate edge transparency without source-over inflation.
+    if (effectMask) {
+      drawMaskedPremultipliedCrossfade(
+        context,
+        snapshot,
+        filtered,
+        effectMask,
+        layer.opacity,
+      );
+    } else {
+      context.save();
+      context.clearRect(0, 0, width, height);
+      drawPremultipliedCrossfade(context, snapshot, filtered, layer.opacity);
+      context.restore();
+    }
+    return;
+  }
+
+  snapshotPixels ??= snapshotContext.getImageData(0, 0, width, height).data;
+  adjustedPixels ??= filteredContext.getImageData(0, 0, width, height).data;
+  const effectMaskPixels = effectMask
+    ? effectMask.getContext("2d", { willReadFrequently: true })
+      ?.getImageData(0, 0, width, height).data
+    : undefined;
+  const composited = blendAdjustmentPixels(
+    snapshotPixels,
+    adjustedPixels,
+    layer.opacity,
+    layer.blendMode,
+    effectMaskPixels,
+  );
+  const compositedImage = context.createImageData(width, height);
+  compositedImage.data.set(composited);
   context.clearRect(0, 0, width, height);
-  context.drawImage(snapshot, 0, 0);
-  context.globalAlpha = layer.opacity;
-  context.globalCompositeOperation = mapBlendMode(layer.blendMode);
-  context.drawImage(filtered, 0, 0);
-  context.restore();
+  context.putImageData(compositedImage, 0, 0);
 }
 
 export function renderDocument(
@@ -418,10 +631,13 @@ export function renderDocument(
         maskedContext.drawImage(surface, 0, 0);
         maskedContext.globalCompositeOperation = "destination-in";
         maskedContext.drawImage(renderMask(layer.mask, dimensions.width, dimensions.height, dimensions.scale), 0, 0);
-        outputContext.globalAlpha = opacity * (1 - layer.mask.density);
-        outputContext.drawImage(surface, 0, 0);
-        outputContext.globalAlpha = opacity * layer.mask.density;
-        outputContext.drawImage(masked, 0, 0);
+        const densityMixed = createSurface(dimensions.width, dimensions.height);
+        const densityContext = densityMixed.getContext("2d");
+        if (densityContext) {
+          drawDensityMixedMask(densityContext, surface, masked, layer.mask.density);
+          outputContext.globalAlpha = opacity;
+          outputContext.drawImage(densityMixed, 0, 0);
+        }
       }
     } else {
       outputContext.globalAlpha = opacity;

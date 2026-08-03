@@ -1522,6 +1522,19 @@ function MaskProperties({ layer, onDispatch }: { layer?: Layer; onDispatch: (com
             changes: { values: defaults } as Partial<Layer>,
           });
         }}>Reset adjustment</button>
+        {layer.mask ? (
+          <div className="adjustment-mask-controls">
+            <h3>Layer mask</h3>
+            <MaskControlFields layer={layer} onDispatch={onDispatch} />
+          </div>
+        ) : (
+          <button
+            className="secondary add-mask"
+            onClick={() => onDispatch({ type: "mask/ensure", layerId: layer.id })}
+          >
+            Add layer mask
+          </button>
+        )}
       </section>
     );
   }
@@ -1607,34 +1620,56 @@ function MaskProperties({ layer, onDispatch }: { layer?: Layer; onDispatch: (com
   return (
     <section className="properties-panel">
       <h2>Mask</h2>
-      <div className="mask-settings">
-        <MaskThumbnail layer={layer} size={66} />
-        <div className="property-sliders">
-          <label>
-            <span>Density <output>{Math.round(mask.density * 100)}%</output></span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={mask.density}
-              onChange={(event) => onDispatch({ type: "mask/settings", layerId: layer.id, density: Number(event.target.value) })}
-            />
-          </label>
-          <label>
-            <span>Feather <output>{mask.feather} px</output></span>
-            <input
-              type="range"
-              min={0}
-              max={40}
-              step={1}
-              value={mask.feather}
-              onChange={(event) => onDispatch({ type: "mask/settings", layerId: layer.id, feather: Number(event.target.value) })}
-            />
-          </label>
-        </div>
-      </div>
+      <MaskControlFields layer={layer} onDispatch={onDispatch} />
     </section>
+  );
+}
+
+function MaskControlFields({
+  layer,
+  onDispatch,
+}: {
+  layer: Layer;
+  onDispatch: (command: EditorCommand) => void;
+}) {
+  const mask = layer.mask;
+  if (!mask) return null;
+  return (
+    <div className="mask-settings">
+      <MaskThumbnail layer={layer} size={66} />
+      <div className="property-sliders">
+        <label>
+          <span>Density <output>{Math.round(mask.density * 100)}%</output></span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={mask.density}
+            onChange={(event) => onDispatch({
+              type: "mask/settings",
+              layerId: layer.id,
+              density: Number(event.target.value),
+            })}
+          />
+        </label>
+        <label>
+          <span>Feather <output>{mask.feather} px</output></span>
+          <input
+            type="range"
+            min={0}
+            max={40}
+            step={1}
+            value={mask.feather}
+            onChange={(event) => onDispatch({
+              type: "mask/settings",
+              layerId: layer.id,
+              feather: Number(event.target.value),
+            })}
+          />
+        </label>
+      </div>
+    </div>
   );
 }
 

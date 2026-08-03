@@ -75,6 +75,7 @@
     "files": [
       "dist/client/**/*",
       "electron/**/*",
+      "build/icon.png",
       "package.json",
       "LICENSE",
       "README.md",
@@ -100,6 +101,12 @@
     },
     "portable": {
       "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      }
+    ]
   }
 }

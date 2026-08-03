@@ -19,3 +19,5 @@ The selected design is ideation option 2, preserved at `design-reference.png`.
 - Do not add account, cloud, AI, telemetry, or decorative dashboard surfaces.
 - Prefer a "Calm Canvas" interaction model: the artwork stays dominant, controls appear contextually, and workspace chrome can recede without hiding essential state.
 - Motion must be short and purposeful, preserve spatial continuity, avoid easing active brush or pan input, and honor reduced-motion preferences.
+- Keep the top-left PhotoPop wordmark at its natural width with breathing room before File; do not use a vertical divider between the brand and application menus.
+- Use the coral PhotoPop P-dot mark for the window, taskbar, installer, and file identity; never expose Electron's default icon in the product experience.

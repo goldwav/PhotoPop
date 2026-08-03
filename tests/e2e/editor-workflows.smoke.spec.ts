@@ -14,6 +14,58 @@ import {
 } from "./electron-harness";
 import { pngFixture, projectBytes, projectDocument } from "./project-fixtures";
 
+test("keeps the PhotoPop wordmark readable and separated from File at the minimum workspace", async ({}, testInfo) => {
+  const running = await launch(testInfo);
+  try {
+    const { page } = running;
+    await page.setViewportSize({ width: 1280, height: 720 });
+
+    const metrics = await page.evaluate(() => {
+      const brand = document.querySelector<HTMLButtonElement>(".menu-bar .brand");
+      const file = document.querySelector<HTMLButtonElement>(".menu-bar .menu-trigger");
+      if (!brand || !file) throw new Error("PhotoPop header controls are missing.");
+
+      const textBounds = (element: HTMLElement) => {
+        const text = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+        if (!text) {
+          throw new Error("No text node found for " + (element.textContent ?? "header control") + ".");
+        }
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        return range.getBoundingClientRect().toJSON();
+      };
+      const brandBounds = brand.getBoundingClientRect().toJSON();
+      const fileBounds = file.getBoundingClientRect().toJSON();
+      const brandTextBounds = textBounds(brand);
+      const fileTextBounds = textBounds(file);
+      const brandStyle = getComputedStyle(brand);
+      const afterStyle = getComputedStyle(brand, "::after");
+
+      return {
+        afterContent: afterStyle.content,
+        borderRightWidth: brandStyle.borderRightWidth,
+        brandBounds,
+        brandTextBounds,
+        fileBounds,
+        fileTextBounds,
+        horizontalOverflow: brand.scrollWidth - brand.clientWidth,
+        viewport: { height: window.innerHeight, width: window.innerWidth },
+      };
+    });
+
+    expect(metrics.viewport).toEqual({ width: 1280, height: 720 });
+    expect(metrics.horizontalOverflow).toBeLessThanOrEqual(0);
+    expect(metrics.brandTextBounds.width).toBeGreaterThan(0);
+    expect(metrics.brandBounds.width - metrics.brandTextBounds.width).toBeGreaterThanOrEqual(24);
+    expect(metrics.fileBounds.left).toBeGreaterThanOrEqual(metrics.brandBounds.right);
+    expect(metrics.fileTextBounds.left - metrics.brandTextBounds.right).toBeGreaterThanOrEqual(20);
+    expect(metrics.borderRightWidth).toBe("0px");
+    expect(["none", "normal", '""']).toContain(metrics.afterContent);
+  } finally {
+    await running.close();
+  }
+});
+
 test("launches, edits, undoes, and exposes working keyboard shortcuts", async ({}, testInfo) => {
   const running = await launch(testInfo);
   try {

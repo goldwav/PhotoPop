@@ -30,6 +30,7 @@ import JSZip from "jszip";
 import sharp from "sharp";
 
 const APP_SCHEME = "photopop";
+const APP_USER_MODEL_ID = "org.photopop.editor";
 const MAX_IMPORT_BYTES = 512 * 1024 * 1024;
 const MAX_PROJECT_ENTRIES = 4_096;
 const MAX_PROJECT_UNCOMPRESSED_BYTES = 768 * 1024 * 1024;
@@ -68,6 +69,11 @@ protocol.registerSchemesAsPrivileged([
 function appAssetRoot() {
   const electronDirectory = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(electronDirectory, "..", "dist", "client");
+}
+
+function appIconPath() {
+  const electronDirectory = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(electronDirectory, "..", "build", "icon.png");
 }
 
 function registerAppProtocol() {
@@ -122,6 +128,7 @@ export function createWindow() {
     minWidth: 1120,
     minHeight: 720,
     backgroundColor: "#f2f1ee",
+    icon: appIconPath(),
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
@@ -1049,6 +1056,7 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
+  app.setAppUserModelId(APP_USER_MODEL_ID);
   void queueLaunchFilesFromArguments(process.argv);
 
   app.on("open-file", (event, filePath) => {

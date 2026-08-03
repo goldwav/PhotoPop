@@ -1,0 +1,28 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.avif binary
+*.exe binary
+*.gif binary
+*.icc binary
+*.icm binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.pdf binary
+*.photopop binary
+*.png binary
+*.psd binary
+*.tif binary
+*.tiff binary
+*.wasm binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.zip binary
