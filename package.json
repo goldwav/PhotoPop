@@ -44,7 +44,7 @@
     "canvaskit-wasm": "0.41.1",
     "concurrently": "10.0.4",
     "cross-env": "10.1.0",
-    "electron": "43.2.0",
+    "electron": "43.8.1",
     "electron-builder": "26.15.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
